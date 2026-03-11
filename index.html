@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Today Flow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap"
+    rel="stylesheet"
+  />
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            sand: "#f6efe7",
+            ink: "#191512",
+            coral: "#ff7a59",
+            mist: "#fffdf9"
+          },
+          fontFamily: {
+            display: ["Space Grotesk", "sans-serif"],
+            body: ["DM Sans", "sans-serif"]
+          },
+          boxShadow: {
+            soft: "0 24px 80px rgba(44, 28, 16, 0.14)"
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="bg-stone-950">
+  <div class="page-backdrop"></div>
+  <div class="container-xl py-4 py-lg-5 position-relative">
+    <section class="hero-surface rounded-5 p-4 p-lg-5 shadow-soft">
+      <div class="row g-4 align-items-end">
+        <div class="col-lg-8">
+          <span class="badge text-bg-light hero-badge mb-3">Today Flow</span>
+          <h1 class="display-4 fw-semibold hero-title mb-3">오늘 일정과 할 일을 한 화면에서 정리하세요</h1>
+          <p class="lead hero-copy mb-0">
+            기록, 확인, 완료, 순서 조정, 인라인 수정까지 자연스럽게 이어지는 개인용 todo 플래너입니다.
+          </p>
+        </div>
+        <div class="col-lg-4">
+          <div class="hero-summary card border-0 rounded-5">
+            <div class="card-body p-4">
+              <p class="text-uppercase small fw-bold summary-label mb-2">Selected Day</p>
+              <strong id="selectedDateLabel" class="d-block fs-3 mb-2"></strong>
+              <span id="taskSummary" class="text-secondary">0개의 일정</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <main class="row g-4 mt-1">
+      <section class="col-lg-4">
+        <div class="planner-card card border-0 rounded-5 shadow-soft h-100">
+          <div class="card-body p-4 p-xl-5">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+              <div>
+                <p class="section-kicker mb-2">Quick Add</p>
+                <h2 class="h3 fw-semibold mb-0">새 일정 추가</h2>
+              </div>
+              <div class="mini-dot"></div>
+            </div>
+
+            <form id="taskForm" class="vstack gap-3">
+              <label class="form-label-wrap">
+                <span class="form-label-text">할 일</span>
+                <input id="taskTitle" name="title" type="text" maxlength="80" placeholder="예: 발표 자료 마무리" class="form-control form-control-lg app-input" required />
+              </label>
+
+              <div class="row g-3">
+                <div class="col-sm-6">
+                  <label class="form-label-wrap">
+                    <span class="form-label-text">날짜</span>
+                    <input id="taskDate" name="date" type="date" class="form-control form-control-lg app-input" required />
+                  </label>
+                </div>
+                <div class="col-sm-6">
+                  <label class="form-label-wrap">
+                    <span class="form-label-text">시간</span>
+                    <input id="taskTime" name="time" type="time" class="form-control form-control-lg app-input" />
+                  </label>
+                </div>
+              </div>
+
+              <label class="form-label-wrap">
+                <span class="form-label-text">메모</span>
+                <textarea id="taskNote" name="note" rows="4" maxlength="200" placeholder="짧은 메모를 남겨보세요" class="form-control app-input app-textarea"></textarea>
+              </label>
+
+              <button type="submit" class="btn btn-lg submit-btn w-100">일정 저장</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section class="col-lg-8">
+        <div class="planner-card card border-0 rounded-5 shadow-soft">
+          <div class="card-body p-4 p-xl-5">
+            <div class="d-flex flex-column flex-xl-row justify-content-between gap-3 mb-4">
+              <div>
+                <p class="section-kicker mb-2">Planner Board</p>
+                <h2 class="h3 fw-semibold mb-0">일정 목록</h2>
+              </div>
+              <div class="d-flex flex-wrap gap-2">
+                <button class="btn filter-chip active" data-filter="all" type="button">전체</button>
+                <button class="btn filter-chip" data-filter="active" type="button">진행 중</button>
+                <button class="btn filter-chip" data-filter="done" type="button">완료</button>
+              </div>
+            </div>
+
+            <div class="toolbar-shell d-flex flex-column flex-md-row gap-3 align-items-md-end mb-4">
+              <label class="form-label-wrap flex-grow-1">
+                <span class="form-label-text">조회 날짜</span>
+                <input id="selectedDate" type="date" class="form-control form-control-lg app-input" />
+              </label>
+              <button id="todayButton" class="btn today-btn btn-lg" type="button">오늘로 이동</button>
+            </div>
+
+            <ul id="taskList" class="task-list list-unstyled mb-0"></ul>
+            <div id="emptyState" class="empty-shell text-center rounded-5 p-5">
+              <p class="mb-2 fw-semibold">선택한 날짜에 등록된 일정이 없습니다.</p>
+              <span class="text-secondary">왼쪽 입력 폼에서 첫 일정을 추가해보세요.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <template id="taskItemTemplate">
+    <li class="task-item">
+      <button class="drag-handle" type="button" aria-label="순서 이동" draggable="true">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <label class="check-wrap">
+        <input class="task-toggle" type="checkbox" />
+        <span class="checkmark"></span>
+      </label>
+      <div class="task-content">
+        <div class="task-topline">
+          <strong class="task-title"></strong>
+          <span class="task-time badge rounded-pill"></span>
+        </div>
+        <p class="task-note"></p>
+      </div>
+      <button class="edit-btn" type="button" aria-label="수정">수정</button>
+      <button class="delete-btn" type="button" aria-label="삭제">삭제</button>
+    </li>
+  </template>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
