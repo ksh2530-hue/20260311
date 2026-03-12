@@ -1,0 +1,11 @@
+{
+  "name": "mealwise",
+  "version": "1.0.0",
+  "description": "Premium School Meal Alert App",
+  "scripts": {
+    "start": "serve ."
+  },
+  "dependencies": {
+    "serve": "^14.2.1"
+  }
+}
