@@ -1,194 +1,67 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduQ&A | 프리미엄 교과 질문 게시판</title>
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- SweetAlert2 CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <!-- Google Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Inter', sans-serif; }
-    h1, h2, h3 { font-family: 'Outfit', sans-serif; }
-    .glass-effect {
-      background: rgba(255, 255, 255, 0.7);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>오늘의 급식 - MealWise</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-900 selection:bg-indigo-100 selection:text-indigo-700">
+<body>
+    <div class="container">
+        <header>
+            <h1>MealWise</h1>
+            <p>오늘의 학교 급식 정보를 확인하세요</p>
+        </header>
 
-  <div class="max-w-7xl mx-auto px-4 py-12 md:py-20">
-    <!-- Header Section -->
-    <header class="text-center mb-16 animate-[fadeInDown_0.6s_ease-out]">
-      <span class="inline-block bg-indigo-50 text-indigo-600 px-4 py-1.5 rounded-full text-sm font-bold tracking-wide mb-6 shadow-sm border border-indigo-100">
-        STUDY COMMUNITY
-      </span>
-      <h1 class="text-5xl md:text-6xl font-extrabold text-slate-900 mb-6 tracking-tight">
-        지식 공유 <span class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">질문 게시판</span>
-      </h1>
-      <p class="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto mb-10 leading-relaxed">
-        고등학생 교과 과정의 모든 궁금증을 해결하세요. <br class="hidden md:block">
-        친구들과 질문을 나누고 답변하며 함께 성장해 보세요.
-      </p>
-      
-      <!-- Stats -->
-      <div class="flex flex-wrap justify-center gap-8 md:gap-16">
-        <div class="flex flex-col items-center">
-          <span class="text-3xl font-bold text-indigo-600" id="total-questions">0</span>
-          <span class="text-xs uppercase tracking-widest font-semibold text-slate-400">Total Questions</span>
-        </div>
-        <div class="w-px h-10 bg-slate-200 hidden md:block"></div>
-        <div class="flex flex-col items-center">
-          <span class="text-3xl font-bold text-emerald-500" id="answered-count">0</span>
-          <span class="text-xs uppercase tracking-widest font-semibold text-slate-400">Answered</span>
-        </div>
-      </div>
-    </header>
-
-    <main class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-      <!-- Left Sidebar: Question Form -->
-      <aside class="lg:col-span-4 sticky top-8">
-        <div class="glass-effect rounded-3xl p-8 shadow-xl shadow-slate-200/50">
-          <div class="flex items-center gap-3 mb-6">
-            <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-200">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-              </svg>
-            </div>
-            <h2 class="text-2xl font-bold text-slate-800">새 질문 등록</h2>
-          </div>
-          
-          <form id="question-form" class="space-y-5">
-            <div>
-              <label for="subject" class="block text-sm font-bold text-slate-700 mb-2">교과 카테고리</label>
-              <select id="subject" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-700 font-medium focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all outline-none" required>
-                <option value="" disabled selected>과목을 선택하세요</option>
-                <option value="국어">국어</option>
-                <option value="영어">영어</option>
-                <option value="수학">수학</option>
-                <option value="사회">사회</option>
-                <option value="과학">과학</option>
-                <option value="기타">기타</option>
-              </select>
+        <main class="main-card">
+            <div class="school-info">
+                <div class="school-name-container">
+                    <h2 id="display-school-name">학교를 선택해주세요</h2>
+                    <p id="display-school-loc">아래 버튼을 눌러 학교를 검색하세요</p>
+                </div>
+                <button class="change-btn" id="open-search-btn">
+                    <i class="fas fa-search"></i> 변경
+                </button>
             </div>
 
-            <div>
-              <label for="question-text" class="block text-sm font-bold text-slate-700 mb-2">질문 내용</label>
-              <textarea id="question-text" rows="4" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-700 placeholder:text-slate-400 focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all outline-none resize-none" placeholder="무엇이 궁금한가요?" required></textarea>
+            <div class="date-display">
+                <h3 id="display-date">2024년 03월 12일</h3>
             </div>
 
-            <div>
-              <label for="context" class="block text-sm font-bold text-slate-700 mb-2">추가 설명 (선택)</label>
-              <input id="context" type="text" class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-700 placeholder:text-slate-400 focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all outline-none" placeholder="단원명 또는 참고 교재" />
+            <div class="meal-type-tabs">
+                <div class="tab" data-type="1">조식</div>
+                <div class="tab active" data-type="2">중식</div>
+                <div class="tab" data-type="3">석식</div>
             </div>
 
-            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-100 transform active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-              질문 등록하기
-            </button>
-          </form>
-        </div>
-      </aside>
+            <div class="meal-content" id="meal-container">
+                <!-- Meal items will be injected here -->
+                <div class="loader"></div>
+            </div>
 
-      <!-- Right Content: Question List -->
-      <section class="lg:col-span-8">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-          <h2 class="text-3xl font-extrabold text-slate-800 tracking-tight flex items-center gap-3">
-            질문 피드
-            <span class="text-base font-normal text-slate-400 bg-slate-100 px-3 py-1 rounded-full" id="feed-count">0</span>
-          </h2>
-          
-          <div class="flex gap-2 overflow-x-auto pb-2 scrollbar-none" id="subject-filters">
-            <button class="px-5 py-2 rounded-full border border-slate-200 bg-white text-sm font-bold text-slate-500 hover:border-indigo-500 hover:text-indigo-600 transition-all active-filter whitespace-nowrap active" data-subject="all">전체</button>
-            <button class="px-5 py-2 rounded-full border border-slate-200 bg-white text-sm font-bold text-slate-500 hover:border-indigo-500 hover:text-indigo-600 transition-all whitespace-nowrap" data-subject="국어">국어</button>
-            <button class="px-5 py-2 rounded-full border border-slate-200 bg-white text-sm font-bold text-slate-500 hover:border-indigo-500 hover:text-indigo-600 transition-all whitespace-nowrap" data-subject="영어">영어</button>
-            <button class="px-5 py-2 rounded-full border border-slate-200 bg-white text-sm font-bold text-slate-500 hover:border-indigo-500 hover:text-indigo-600 transition-all whitespace-nowrap" data-subject="수학">수학</button>
-            <button class="px-5 py-2 rounded-full border border-slate-200 bg-white text-sm font-bold text-slate-500 hover:border-indigo-500 hover:text-indigo-600 transition-all whitespace-nowrap" data-subject="사회">사회</button>
-            <button class="px-5 py-2 rounded-full border border-slate-200 bg-white text-sm font-bold text-slate-500 hover:border-indigo-500 hover:text-indigo-600 transition-all whitespace-nowrap" data-subject="과학">과학</button>
-          </div>
-        </div>
-
-        <div class="space-y-6" id="question-list">
-          <!-- Question cards will be injected here -->
-        </div>
-      </section>
-    </main>
-  </div>
-
-  <!-- Question Card Template (Hidden) -->
-  <template id="question-template">
-    <div class="group bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all duration-300 cursor-pointer animate-[fadeInUp_0.4s_ease-out]">
-      <div class="flex justify-between items-start mb-5">
-        <span class="subject-tag text-[11px] font-extrabold px-3 py-1 rounded-lg uppercase tracking-wider">과목</span>
-        <div class="flex items-center gap-2">
-          <span class="status-badge flex items-center gap-1.5 text-xs font-bold text-slate-400">
-            <span class="w-1.5 h-1.5 rounded-full bg-slate-200"></span>
-            대기 중
-          </span>
-        </div>
-      </div>
-      
-      <h3 class="question-title text-xl font-bold text-slate-800 mb-3 group-hover:text-indigo-600 transition-colors leading-snug">질문 내용이 여기에 들어갑니다.</h3>
-      <p class="context-info text-sm text-slate-400 mb-6 font-medium">추가 맥락 정보</p>
-      
-      <div class="card-details hidden section-expand">
-        <div class="pt-6 border-t border-slate-50">
-          <h4 class="text-xs uppercase tracking-widest font-black text-slate-300 mb-6">REPLIES</h4>
-          <div class="answers-container space-y-4 mb-8">
-            <!-- Answers go here -->
-          </div>
-          
-          <div class="flex gap-3">
-            <button class="btn-answer w-full bg-slate-900 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-              </svg>
-              답변 달기
-            </button>
-          </div>
-        </div>
-      </div>
+            <div class="meal-info-footer">
+                <span id="display-calorie">칼로리 정보 없음</span>
+                <span id="display-origin">원산지 정보 없음</span>
+            </div>
+        </main>
     </div>
-  </template>
 
-  <!-- Main Script -->
-  <script type="module" src="script.js"></script>
-  <style>
-    @keyframes fadeInDown {
-      from { opacity: 0; transform: translateY(-20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .active-filter.active {
-      background: #4f46e5;
-      color: white;
-      border-color: #4f46e5;
-      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
-    }
-    .section-expand {
-      animation: expand 0.3s ease-out forwards;
-    }
-    @keyframes expand {
-      from { opacity: 0; height: 0; }
-      to { opacity: 1; height: auto; }
-    }
-    .subject-수학 { background: #fee2e2; color: #dc2626; }
-    .subject-과학 { background: #dcfce7; color: #16a34a; }
-    .subject-사회 { background: #fef9c3; color: #ca8a04; }
-    .subject-영어 { background: #e0f2fe; color: #0284c7; }
-    .subject-국어 { background: #ede9fe; color: #7c3aed; }
-    .subject-기타 { background: #f1f5f9; color: #475569; }
-  </style>
+    <!-- School Search Modal -->
+    <div class="modal" id="search-modal">
+        <div class="modal-content">
+            <h3>학교 검색</h3>
+            <div class="search-input-group">
+                <input type="text" id="school-search-input" placeholder="학교 이름을 입력하세요 (예: 서울고)">
+            </div>
+            <div class="search-results" id="search-results">
+                <!-- Search results will be injected here -->
+                <p style="text-align: center; color: var(--text-muted); padding: 1rem;">학교 이름을 입력하고 Enter를 누르세요</p>
+            </div>
+            <button class="change-btn" id="close-search-btn" style="width: 100%; margin-top: 1.5rem;">닫기</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
 </body>
 </html>
-
-
-
