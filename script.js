@@ -1,518 +1,171 @@
-const STORAGE_KEY = "today-flow-tasks";
-const DEFAULT_FILTER = "all";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+import { 
+  getFirestore, collection, addDoc, onSnapshot, query, orderBy, 
+  updateDoc, doc, arrayUnion, serverTimestamp 
+} from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
-const elements = {
-  taskForm: document.querySelector("#taskForm"),
-  titleInput: document.querySelector("#taskTitle"),
-  dateInput: document.querySelector("#taskDate"),
-  timeInput: document.querySelector("#taskTime"),
-  noteInput: document.querySelector("#taskNote"),
-  selectedDateInput: document.querySelector("#selectedDate"),
-  selectedDateLabel: document.querySelector("#selectedDateLabel"),
-  taskSummary: document.querySelector("#taskSummary"),
-  taskList: document.querySelector("#taskList"),
-  emptyState: document.querySelector("#emptyState"),
-  todayButton: document.querySelector("#todayButton"),
-  filterButtons: document.querySelectorAll("[data-filter]"),
-  template: document.querySelector("#taskItemTemplate"),
+// User's Firebase Configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyD48dDo-_lNvRRhqVw83KU5zjQcUqNcM4E",
+  authDomain: "qna2-edbdc.firebaseapp.com",
+  projectId: "qna2-edbdc",
+  storageBucket: "qna2-edbdc.firebasestorage.app",
+  messagingSenderId: "150441888865",
+  appId: "1:150441888865:web:32a9a1d81aab046486ee20",
+  measurementId: "G-FNSK2EVY4N"
 };
 
-const todayValue = formatDate(new Date());
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const questionsCol = collection(db, "questions");
 
-const state = {
-  tasks: loadTasks(),
-  selectedDate: todayValue,
-  activeFilter: DEFAULT_FILTER,
-  draggedTaskId: null,
-  editingTaskId: null,
-};
+const questionForm = document.getElementById("question-form");
+const questionList = document.getElementById("question-list");
+const template = document.getElementById("question-template");
+const totalCounter = document.getElementById("total-questions");
+const answeredCounter = document.getElementById("answered-count");
+const feedCountDisplay = document.getElementById("feed-count");
+const filters = document.getElementById("subject-filters");
 
-initializeApp();
+let questions = []; 
+let activeSubject = "all";
 
-function initializeApp() {
-  syncDateInputs(state.selectedDate);
-  setDefaultTime();
-  bindEvents();
-  render();
+function updateCounters() {
+  const total = questions.length;
+  const answered = questions.filter(q => q.answers && q.answers.length > 0).length;
+  totalCounter.innerText = total;
+  answeredCounter.innerText = answered;
+  const filteredCount = activeSubject === "all" ? total : questions.filter(q => q.subject === activeSubject).length;
+  feedCountDisplay.innerText = filteredCount;
 }
 
-function bindEvents() {
-  elements.taskForm.addEventListener("submit", handleTaskSubmit);
-  elements.selectedDateInput.addEventListener("change", handleDateChange);
-  elements.todayButton.addEventListener("click", moveToToday);
-  elements.taskList.addEventListener("click", handleTaskListClick);
-  elements.taskList.addEventListener("change", handleTaskListChange);
-  elements.taskList.addEventListener("dragstart", handleDragStart);
-  elements.taskList.addEventListener("dragover", handleDragOver);
-  elements.taskList.addEventListener("dragleave", handleDragLeave);
-  elements.taskList.addEventListener("drop", handleDrop);
-  elements.taskList.addEventListener("dragend", handleDragEnd);
-
-  elements.filterButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      setFilter(button.dataset.filter || DEFAULT_FILTER);
-    });
+function renderAnswers(container, answers) {
+  container.innerHTML = "";
+  if (!answers || answers.length === 0) {
+    container.innerHTML = `<div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center"><p class="text-sm text-slate-400 italic">아직 답변이 없습니다. 첫 답변의 주인공이 되어보세요!</p></div>`;
+    return;
+  }
+  answers.forEach(answer => {
+    const div = document.createElement("div");
+    div.className = "bg-slate-50 border border-slate-100 rounded-2xl p-4 text-slate-700 text-sm shadow-sm animate-[fadeInUp_0.3s_ease-out]";
+    div.textContent = answer;
+    container.appendChild(div);
   });
 }
 
-function handleTaskSubmit(event) {
-  event.preventDefault();
+function createQuestionCard(q) {
+  const clone = template.content.cloneNode(true);
+  const card = clone.querySelector("div");
+  const subjectTag = card.querySelector(".subject-tag");
+  const statusBadge = card.querySelector(".status-badge");
+  const title = card.querySelector(".question-title");
+  const context = card.querySelector(".context-info");
+  const details = card.querySelector(".card-details");
+  const answersContainer = card.querySelector(".answers-container");
+  const answerBtn = card.querySelector(".btn-answer");
 
-  const nextTask = buildTaskFromForm();
-  if (!nextTask) {
-    return;
-  }
+  subjectTag.textContent = q.subject;
+  subjectTag.className = `subject-tag text-[10px] font-extrabold px-2.5 py-1 rounded-lg uppercase tracking-wider subject-${q.subject}`;
+  title.textContent = q.question;
+  context.textContent = q.context || "추가 설명 없음";
 
-  state.tasks.unshift({
-    ...nextTask,
-    id: crypto.randomUUID(),
-    done: false,
-    position: getNextPosition(nextTask.date),
-    createdAt: new Date().toISOString(),
-  });
-
-  state.selectedDate = nextTask.date;
-  persistTasks();
-  elements.taskForm.reset();
-  syncDateInputs(nextTask.date);
-  setDefaultTime();
-  render();
-  elements.titleInput.focus();
-}
-
-function handleDateChange(event) {
-  state.selectedDate = event.target.value || todayValue;
-  syncDateInputs(state.selectedDate);
-  render();
-}
-
-function moveToToday() {
-  state.selectedDate = todayValue;
-  syncDateInputs(todayValue);
-  render();
-}
-
-function handleTaskListClick(event) {
-  const taskItem = event.target.closest(".task-item");
-  if (!taskItem) {
-    return;
-  }
-
-  const taskId = taskItem.dataset.id;
-
-  if (event.target.closest(".edit-btn")) {
-    if (state.editingTaskId === taskId) {
-      saveInlineEdit(taskItem, taskId);
+  const refreshStatus = () => {
+    if (q.answers && q.answers.length > 0) {
+      statusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> ${q.answers.length} Replies`;
+      statusBadge.classList.replace("text-slate-400", "text-emerald-500");
     } else {
-      state.editingTaskId = taskId;
-      render();
-      focusInlineEditor(taskId);
+      statusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-slate-200"></span> Pending`;
+      statusBadge.classList.add("text-slate-400");
     }
-    return;
-  }
+  };
 
-  if (event.target.closest(".delete-btn")) {
-    if (state.editingTaskId === taskId) {
-      state.editingTaskId = null;
-      render();
-      return;
-    }
+  refreshStatus();
+  renderAnswers(answersContainer, q.answers);
 
-    removeTask(taskId);
-  }
-}
-
-function handleTaskListChange(event) {
-  const toggle = event.target.closest(".task-toggle");
-  if (!toggle) {
-    return;
-  }
-
-  const taskItem = toggle.closest(".task-item");
-  if (!taskItem) {
-    return;
-  }
-
-  toggleTask(taskItem.dataset.id, toggle.checked);
-}
-
-function setFilter(filter) {
-  state.activeFilter = filter;
-
-  elements.filterButtons.forEach((button) => {
-    button.classList.toggle("active", button.dataset.filter === filter);
+  card.addEventListener("click", (e) => {
+    if (e.target.closest('button')) return;
+    document.querySelectorAll(".card-details").forEach(d => { if (d !== details) d.classList.add("hidden"); });
+    details.classList.toggle("hidden");
   });
 
-  render();
-}
-
-function buildTaskFromForm() {
-  const title = elements.titleInput.value.trim();
-  const date = elements.dateInput.value;
-  const time = elements.timeInput.value;
-  const note = elements.noteInput.value.trim();
-
-  if (!title || !date) {
-    return null;
-  }
-
-  return { title, date, time, note };
-}
-
-function removeTask(taskId) {
-  state.tasks = state.tasks.filter((task) => task.id !== taskId);
-  if (state.editingTaskId === taskId) {
-    state.editingTaskId = null;
-  }
-  persistTasks();
-  render();
-}
-
-function toggleTask(taskId, done) {
-  const task = state.tasks.find((item) => item.id === taskId);
-  if (!task) {
-    return;
-  }
-
-  task.done = done;
-  persistTasks();
-  render();
-}
-
-function saveInlineEdit(taskItem, taskId) {
-  const title = taskItem.querySelector(".task-edit-title")?.value.trim() || "";
-  const time = taskItem.querySelector(".task-edit-time")?.value || "";
-  const note = taskItem.querySelector(".task-edit-note")?.value.trim() || "";
-
-  if (!title) {
-    return;
-  }
-
-  state.tasks = state.tasks.map((task) => {
-    if (task.id !== taskId) {
-      return task;
-    }
-
-    return {
-      ...task,
-      title,
-      time,
-      note,
-    };
-  });
-
-  state.editingTaskId = null;
-  persistTasks();
-  render();
-}
-
-function focusInlineEditor(taskId) {
-  const item = elements.taskList.querySelector(`[data-id="${taskId}"]`);
-  const input = item?.querySelector(".task-edit-title");
-  if (input) {
-    input.focus();
-    input.select();
-  }
-}
-
-function render() {
-  const visibleTasks = getVisibleTasks();
-  renderHeader(visibleTasks);
-  renderTaskList(visibleTasks);
-}
-
-function renderHeader(visibleTasks) {
-  elements.selectedDateLabel.textContent = formatDisplayDate(state.selectedDate);
-  elements.taskSummary.textContent = `${visibleTasks.length}개의 일정`;
-}
-
-function renderTaskList(visibleTasks) {
-  elements.taskList.innerHTML = "";
-
-  visibleTasks.forEach((task) => {
-    elements.taskList.appendChild(createTaskItem(task));
-  });
-
-  elements.emptyState.hidden = visibleTasks.length > 0;
-}
-
-function createTaskItem(task) {
-  const node = elements.template.content.firstElementChild.cloneNode(true);
-  const isEditing = state.editingTaskId === task.id;
-
-  node.dataset.id = task.id;
-  node.classList.toggle("done", task.done);
-  node.classList.toggle("editing", isEditing);
-  node.querySelector(".task-toggle").checked = task.done;
-
-  if (isEditing) {
-    renderEditableTask(node, task);
-  } else {
-    renderReadonlyTask(node, task);
-  }
-
-  return node;
-}
-
-function renderReadonlyTask(node, task) {
-  node.querySelector(".task-title").textContent = task.title;
-  node.querySelector(".task-time").textContent = task.time || "시간 미정";
-  node.querySelector(".task-note").textContent = task.note || "메모 없음";
-  node.querySelector(".edit-btn").textContent = "수정";
-  node.querySelector(".delete-btn").textContent = "삭제";
-}
-
-function renderEditableTask(node, task) {
-  node.querySelector(".task-topline").innerHTML = `
-    <input class="task-edit-title" type="text" maxlength="80" value="${escapeAttribute(task.title)}" />
-    <input class="task-edit-time" type="time" value="${escapeAttribute(task.time || "")}" />
-  `;
-  node.querySelector(".task-note").outerHTML = `
-    <textarea class="task-edit-note" rows="3" maxlength="200">${escapeHtml(task.note || "")}</textarea>
-  `;
-  node.querySelector(".edit-btn").textContent = "저장";
-  node.querySelector(".delete-btn").textContent = "취소";
-}
-
-function getVisibleTasks() {
-  return state.tasks
-    .filter((task) => task.date === state.selectedDate)
-    .filter(matchesFilter)
-    .sort(sortTasks);
-}
-
-function matchesFilter(task) {
-  if (state.activeFilter === "active") {
-    return !task.done;
-  }
-
-  if (state.activeFilter === "done") {
-    return task.done;
-  }
-
-  return true;
-}
-
-function sortTasks(a, b) {
-  return getTaskPosition(a) - getTaskPosition(b);
-}
-
-function syncDateInputs(dateValue) {
-  elements.selectedDateInput.value = dateValue;
-  elements.dateInput.value = dateValue;
-}
-
-function setDefaultTime() {
-  elements.timeInput.value = formatTime(new Date());
-}
-
-function persistTasks() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.tasks));
-}
-
-function loadTasks() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return normalizeTaskPositions(parsed);
-  } catch (error) {
-    console.error("Failed to parse stored tasks", error);
-    return [];
-  }
-}
-
-function handleDragStart(event) {
-  const handle = event.target.closest(".drag-handle");
-  const taskItem = handle ? handle.closest(".task-item") : null;
-
-  if (!handle || !taskItem || state.editingTaskId === taskItem.dataset.id) {
-    event.preventDefault();
-    return;
-  }
-
-  state.draggedTaskId = taskItem.dataset.id;
-  taskItem.classList.add("dragging");
-  event.dataTransfer.effectAllowed = "move";
-  event.dataTransfer.setData("text/plain", state.draggedTaskId);
-}
-
-function handleDragOver(event) {
-  const taskItem = event.target.closest(".task-item");
-  if (!taskItem || taskItem.dataset.id === state.draggedTaskId) {
-    return;
-  }
-
-  event.preventDefault();
-  clearDragOverState();
-  taskItem.classList.add("drag-over");
-  event.dataTransfer.dropEffect = "move";
-}
-
-function handleDragLeave(event) {
-  const taskItem = event.target.closest(".task-item");
-  if (!taskItem) {
-    return;
-  }
-
-  if (!taskItem.contains(event.relatedTarget)) {
-    taskItem.classList.remove("drag-over");
-  }
-}
-
-function handleDrop(event) {
-  const taskItem = event.target.closest(".task-item");
-  if (!taskItem || taskItem.dataset.id === state.draggedTaskId) {
-    return;
-  }
-
-  event.preventDefault();
-  reorderTasks(state.draggedTaskId, taskItem.dataset.id);
-  clearDragState();
-}
-
-function handleDragEnd() {
-  clearDragState();
-}
-
-function reorderTasks(draggedTaskId, targetTaskId) {
-  const dateTasks = state.tasks
-    .filter((task) => task.date === state.selectedDate)
-    .sort(sortTasks);
-  const visibleIds = dateTasks.filter(matchesFilter).map((task) => task.id);
-  const draggedIndex = visibleIds.indexOf(draggedTaskId);
-  const targetIndex = visibleIds.indexOf(targetTaskId);
-
-  if (draggedIndex === -1 || targetIndex === -1) {
-    return;
-  }
-
-  const reorderedVisibleIds = [...visibleIds];
-  const [movedId] = reorderedVisibleIds.splice(draggedIndex, 1);
-  reorderedVisibleIds.splice(targetIndex, 0, movedId);
-
-  let visibleCursor = 0;
-  const reorderedDateIds = dateTasks.map((task) => {
-    if (visibleIds.includes(task.id)) {
-      const nextId = reorderedVisibleIds[visibleCursor];
-      visibleCursor += 1;
-      return nextId;
-    }
-
-    return task.id;
-  });
-
-  const positionMap = new Map(reorderedDateIds.map((id, index) => [id, index]));
-
-  state.tasks = state.tasks.map((task) => {
-    if (task.date !== state.selectedDate) {
-      return task;
-    }
-
-    return {
-      ...task,
-      position: positionMap.get(task.id),
-    };
-  });
-
-  persistTasks();
-  render();
-}
-
-function clearDragState() {
-  state.draggedTaskId = null;
-  elements.taskList
-    .querySelectorAll(".task-item")
-    .forEach((item) => item.classList.remove("dragging", "drag-over"));
-}
-
-function clearDragOverState() {
-  elements.taskList
-    .querySelectorAll(".task-item.drag-over")
-    .forEach((item) => item.classList.remove("drag-over"));
-}
-
-function getNextPosition(date) {
-  const positions = state.tasks
-    .filter((task) => task.date === date)
-    .map(getTaskPosition);
-
-  return positions.length ? Math.max(...positions) + 1 : 0;
-}
-
-function getTaskPosition(task) {
-  if (typeof task.position === "number") {
-    return task.position;
-  }
-
-  return Number.MAX_SAFE_INTEGER;
-}
-
-function normalizeTaskPositions(tasks) {
-  const grouped = new Map();
-
-  tasks.forEach((task) => {
-    const group = grouped.get(task.date) || [];
-    group.push(task);
-    grouped.set(task.date, group);
-  });
-
-  return tasks.map((task) => {
-    if (typeof task.position === "number") {
-      return task;
-    }
-
-    const group = grouped.get(task.date) || [];
-    const sortedGroup = [...group].sort((a, b) => {
-      if (!a.time && !b.time) {
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      }
-      if (!a.time) {
-        return 1;
-      }
-      if (!b.time) {
-        return -1;
-      }
-      return a.time.localeCompare(b.time);
+  answerBtn.addEventListener("click", async () => {
+    const { value: text } = await Swal.fire({
+      title: '답변 작성하기',
+      input: 'textarea',
+      inputLabel: '작성하신 답변은 모든 공부 친구들에게 공유됩니다.',
+      inputPlaceholder: '답변 내용을 입력하세요...',
+      showCancelButton: true,
+      confirmButtonText: '답변 게시',
+      confirmButtonColor: '#4f46e5',
+      customClass: { popup: 'rounded-3xl' }
     });
 
-    return {
-      ...task,
-      position: sortedGroup.findIndex((item) => item.id === task.id),
-    };
+    if (text) {
+      try {
+        const docRef = doc(db, "questions", q.id);
+        await updateDoc(docRef, { answers: arrayUnion(text) });
+        Swal.fire({ icon: 'success', title: '등록 성공!', timer: 1500, showConfirmButton: false, customClass: { popup: 'rounded-3xl' } });
+      } catch (e) { console.error("Error updating document: ", e); }
+    }
   });
+
+  return card;
 }
 
-function escapeHtml(value) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+function renderQuestions() {
+  questionList.innerHTML = "";
+  const filtered = questions.filter(q => activeSubject === "all" || q.subject === activeSubject);
+  if (filtered.length === 0) {
+    questionList.innerHTML = `<div class="text-center py-20"><h3 class="text-xl font-bold text-slate-800">질문이 없습니다</h3><p class="text-slate-400">새로운 질문을 등록해보세요!</p></div>`;
+    updateCounters();
+    return;
+  }
+  filtered.forEach(q => questionList.appendChild(createQuestionCard(q)));
+  updateCounters();
 }
 
-function escapeAttribute(value) {
-  return escapeHtml(value);
-}
+questionForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const subject = document.getElementById("subject").value;
+  const questionText = document.getElementById("question-text").value.trim();
+  const context = document.getElementById("context").value.trim();
 
-function formatDate(date) {
-  return date.toISOString().split("T")[0];
-}
+  if (!subject || !questionText) return;
 
-function formatTime(date) {
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${hours}:${minutes}`;
-}
+  try {
+    await addDoc(questionsCol, {
+      subject,
+      question: questionText,
+      context,
+      answers: [],
+      createdAt: serverTimestamp() // [수정] 클라이언트 시간 대신 서버 시간을 사용합니다.
+    });
 
-function formatDisplayDate(value) {
-  const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
+    questionForm.reset();
+    activeSubject = "all";
+    document.querySelectorAll('#subject-filters button').forEach(b => b.classList.remove('active', 'active-filter'));
+    document.querySelector('[data-subject="all"]').classList.add('active', 'active-filter');
 
-  return new Intl.DateTimeFormat("ko-KR", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    weekday: "short",
-  }).format(date);
-}
+    Swal.fire({ icon: 'success', title: '질문 등록 완료!', timer: 1500, showConfirmButton: false, customClass: { popup: 'rounded-3xl' } });
+  } catch (e) { console.error("Error adding document: ", e); }
+});
+
+filters.addEventListener("click", (e) => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  activeSubject = btn.dataset.subject;
+  document.querySelectorAll('#subject-filters button').forEach(b => b.classList.remove('active', 'active-filter'));
+  btn.classList.add('active', 'active-filter');
+  renderQuestions();
+});
+
+// [정렬] serverTimestamp를 사용하므로 정렬 쿼리 유지
+const q = query(questionsCol, orderBy("createdAt", "desc"));
+onSnapshot(q, (snapshot) => {
+  questions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  renderQuestions();
+  updateCounters();
+});
+
+
